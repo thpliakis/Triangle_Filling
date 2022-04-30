@@ -141,11 +141,12 @@ def shade_triangle(img,verts2d,vcolors,shade_t):
                     er[i] = 0
             
             #if there isnt any active lines or all are active we are finished
+            # When the last point-vertice is painted we have all 1's to painte the whole triangle
             if(all(ActiveSides[:]==0)):
                 # print("all == 0")
                 break
             if(all(ActiveSides[:]==1)):
-                #print("all == 1")
+                # print("all == 1")
                 break
 
             #temp variable to correnctly index Xact points
