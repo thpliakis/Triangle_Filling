@@ -10,7 +10,7 @@ def shade_triangle(img,verts2d,vcolors,shade_t):
     #   The image Y=img with  the triangles in which, every time the function is called, one triangle will be colored 
     # Initialization of the matrixes
     Y = img
-    c     = np.zeros((1,3))   # Here the average color of a trinagle is stored for flat mode
+    c     = np.zeros(3)   # Here the average color of a trinagle is stored for flat mode
     Ykmin = np.zeros((3,1))      
     Xkmin = np.zeros((3,1))
     m     = np.zeros((3,1))   # m is where the gradient of every side is stored
@@ -89,199 +89,138 @@ def shade_triangle(img,verts2d,vcolors,shade_t):
     Xmax = int(np.max(verts2d[:,0]))
     Xmin = int(np.min(verts2d[:,0]))
 
-    # Flat or Gouraud mode
-    if shade_t == "flat":
+    for i in range(0, 3):
+        c = vcolors[i,:]+c
+    c = c/3
 
-        Ykmax +=1
-        # The color of the triangle is the average of the colors of the 3 peaks
-        for i in range(0, 3):
-            c = vcolors[i,:]+c
-        c = c/3
-
-        
-        if(Ymin == Ymax):
-            # For points or flat triangles
+    if(Ymin == Ymax): # if triangle is a point or flat line
+        if(all(Xkmax[:] == Xmax)):  # if triangle is a point
+            Y[Ymin,Xmax,:] = c
+        else:           # if triangle is a flat line
             for x in range(Xmin,Xmax+1):
-                Y[Ymin,x,:] = c[:]
-        else:
-            # Here for y == Ymin we initialiaze the List with the Active Sides and points
-            for k in range(0,3):
-                if Ykmin[k] == Ymin and m[k] != 0:
-                    ActiveSides[k] = 1          # When the scanline cuts the side of the triangle  the list takes the value 1 otherwise it takes 0.
-                    Xk[k] = (Ymin - verts2d[k,1]) / m[k] + verts2d[k,0] # Initialize active points
-
-                if Ykmax[k] == Ymin:
-                    ActiveSides[k] = 0
-
-            for y in range(Ymin,Ymax+1):           
-                # Refresh X coordinate of activePoints Xk
-                
-                # Get active points for active sides rounded
-                Xact = np.round(Xk[:])
-
-                # Keep the error from rounding and correct when necessary
-                for i in range(0,3):
-                    er[i] = er[i] + (Xk[i] - Xact[i])
-                    if (er[i] > 1):    
-                        Xact[i] += 1
-                        er[i] = 0
-                    if (er[i] < -1):
-                        Xact[i] -= 1
-                        er[i] = 0
-                
-                # Get min and max x-coordiante of this scanline
-                Xmin = int(min(Xact[ActiveSides[:]==1]))
-                Xmax = int(max(Xact[ActiveSides[:]==1]))
-
-                #a counter to show when we are inside the triangle and when outside 
-                cross_c=0;      
-                for x in range(Xmin,Xmax+1):
-                    if any(x == Xact[ActiveSides[:]==1]):
-                        cross_c=cross_c+1   # +1 if we meet a Active side
-                        Y[y,x,:] = c[:]
-
-                    if np.mod(cross_c,2) == 1:  # When cross_c is an odd number we are inside a triangle
-                        Y[y,x,:] = c[:]
-
-                # Update the active sides    
-                for k in range(0,3):
-                    if ActiveSides[k] == 1:  
-                        if m[k] == np.inf:
-                            Xk[k]=Xk[k]
-                        if m[k] == 0:
-                            Xk[k] += 1
-                        else:
-                            Xk[k] = Xk[k] + 1/m[k]
-
-                # Update the active points with the correct gradient 
-                for k in range(0,3):
-                    if Ykmin[k] == y and m[k] != 0:
-                        ActiveSides[k] = 1          # When the scanline cuts the side of the triangle
-                        Xk[k] = (y - verts2d[k,1]) / m[k] + verts2d[k,0]
-
-                    if Ykmax[k] == y: # Disable line
-                        ActiveSides[k] = 0
-        
-        #return imgage with a painted triangle
-        return Y
-    
-    elif shade_t == "gouraud" :
-        
-        if(Ymin == Ymax): # if triangle is a point or flat line
-            if(all(Xkmax[:] == Xmax)):  # if triangle is a point
-                for i in range(0, 3):
-                    c = vcolors[i,:]+c
-                c = c/3
-                Y[Ymin,Xmax,:] = c
-            else:           # if triangle is a flat line
-                for x in range(Xmin,Xmax+1):
-                    # Update active sides
-                    p=0
-                    for k in range(0,3):
-                        Min = min(Xkmin[k],Xkmax[k])
-                        Max = max(Xkmin[k],Xkmax[k])
-                        if(x>= Min and x<Max): 
-                            Xact2[p] = k
-                            ActiveSides[k] = 1
-                            p+=1
-                        elif(x != Xmax):
-                            ActiveSides[k] = 0
-
-                    Y[Ymin,x,:] = interpolate_color(verts2d[Xact2[0],0],verts2d[Xact2[1],0],x,vcolors[Xact2[0],:],vcolors[Xact2[1],:])
-        else:
-            # Here for y == Ymin we initialiaze the List with the Active Sides and points
-            for k in range(0,3):
-                if Ykmin[k] == Ymin and m[k] != 0:
-                    ActiveSides[k] = 1          # When the scanline cuts the side of the triangle # the list takes the value 1 otherwise it takes 0.
-                    Xk[k] = (Ymin - verts2d[k,1]) / m[k] + verts2d[k,0]     # Initialize active points
-
-                if Ykmax[k] == Ymin:
-                    ActiveSides[k] = 0
-
-            # For every scanline
-            for y in range(Ymin,Ymax+1): 
-                
-                # Get active points for active sides rounded
-                Xact = np.round(Xk[:])
-
-                # Keep the error from rounding and correct when necessary
-                for i in range(0,3):
-                    er[i] = er[i] + (Xk[i] - Xact[i])
-                    if (er[i] > 1):    
-                        Xact[i] += 1
-                        er[i] = 0
-                    if (er[i] < -1):
-                        Xact[i] -= 1
-                        er[i] = 0
-                
-                #if there isnt any active lines or all are active we are finished
-                if(all(ActiveSides[:]==0)):
-                    # print("all == 0")
-                    break
-                if(all(ActiveSides[:]==1)):
-                    #print("all == 1")
-                    break
-
-                #temp variable to correnctly index Xact points
+                # Update active sides
                 p=0
-                for i in range(0,3):
-                    if(ActiveSides[i] == 1):
-                        indexAct[p] = i
-                        Xact2[p] = Xact[i]
-                        p += 1
-
-                # Find min and max of a line
-                Xmin = int(min(Xact[ActiveSides[:]==1]))
-                Xmax = int(max(Xact[ActiveSides[:]==1]))
-                
-                # x1,x2,x3,x4 are the vertices that our active points lie between and their respective colors C1,C2,C3,C4
-                x1 = verts2d[pairs[indexAct[0],0],:]
-                x2 = verts2d[pairs[indexAct[0],1],:]
-                x3 = verts2d[pairs[indexAct[1],0],:]
-                x4 = verts2d[pairs[indexAct[1],1],:]
-                C1 = vcolors[pairs[indexAct[0],0],:]
-                C2 = vcolors[pairs[indexAct[0],1],:]
-                C3 = vcolors[pairs[indexAct[1],0],:]
-                C4 = vcolors[pairs[indexAct[1],1],:]
-                # Calculate the colors of the active points
-                colorsXact[0] = interpolate_color(x1,x2,np.array([Xact2[0],y]),C1,C2)
-                colorsXact[1] = interpolate_color(x3,x4,np.array([Xact2[1],y]),C3,C4)
-
-                # temp variable to correnctly keep track of Xact (active points)
-                cross_c=0;      
-                for x in range(Xmin,Xmax+1):
-                    
-                    if(Xact2[0] == Xact2[1]):
-                        Y[y,x,:] = colorsXact[0]
-                        break
-
-                    if(Xact2[0] == x):
-                        Y[y,x,:] = colorsXact[0]
-                        cross_c=cross_c+1 # +1 if we meet a Active side
-                    elif(Xact2[1] == x):
-                        Y[y,x,:] = colorsXact[1]
-                        cross_c=cross_c+1 # +1 if we meet a Active side
-                
-                    if np.mod(cross_c,2) == 1:  # When cross_c is an odd number we are inside a triangle
-                        # Interpolate and paint if point is inside the triangle
-                        Y[y,x,:] = interpolate_color(Xact2[0],Xact2[1],x,colorsXact[0],colorsXact[1])
-
-                # Update the active points with the correct gradient
                 for k in range(0,3):
-                    if ActiveSides[k] == 1:  
-                        if m[k] == np.inf:
-                            Xk[k]=Xk[k]
-                        if m[k] == 0:
-                            Xk[k] += 1
-                        else:
-                            Xk[k] = Xk[k] + 1/m[k]
-
-                for k in range(0,3):
-                    if Ykmin[k] == y+1 and m[k] != 0:
-                        ActiveSides[k] = 1          # When the scanline cuts the side of the triangle
-                        Xk[k] = (y+1 - verts2d[k,1]) / m[k] + verts2d[k,0]
-
-                    if (Ykmax[k] == y+1) and (y+1 != Ymax):
+                    Min = min(Xkmin[k],Xkmax[k])
+                    Max = max(Xkmin[k],Xkmax[k])
+                    if(x>= Min and x<Max): 
+                        Xact2[p] = k
+                        ActiveSides[k] = 1
+                        p+=1
+                    elif(x != Xmax):
                         ActiveSides[k] = 0
+                if shade_t == "gouraud":
+                    Y[Ymin,x,:] = interpolate_color(verts2d[Xact2[0],0],verts2d[Xact2[1],0],x,vcolors[Xact2[0],:],vcolors[Xact2[1],:])
+                elif shade_t == "flat":
+                    Y[Ymin,x,:] =  c[:]
+                #Y[Ymin,x,:] = interpolate_color(verts2d[Xact2[0],0],verts2d[Xact2[1],0],x,vcolors[Xact2[0],:],vcolors[Xact2[1],:])
+    else:
+        # Here for y == Ymin we initialiaze the List with the Active Sides and points
+        for k in range(0,3):
+            if Ykmin[k] == Ymin and m[k] != 0:
+                ActiveSides[k] = 1          # When the scanline cuts the side of the triangle # the list takes the value 1 otherwise it takes 0.
+                Xk[k] = (Ymin - verts2d[k,1]) / m[k] + verts2d[k,0]     # Initialize active points
 
-        return Y
+            if Ykmax[k] == Ymin:
+                ActiveSides[k] = 0
+
+        # For every scanline
+        for y in range(Ymin,Ymax+1): 
+            
+            # Get active points for active sides rounded
+            Xact = np.round(Xk[:])
+
+            # Keep the error from rounding and correct when necessary
+            for i in range(0,3):
+                er[i] = er[i] + (Xk[i] - Xact[i])
+                if (er[i] > 1):    
+                    Xact[i] += 1
+                    er[i] = 0
+                if (er[i] < -1):
+                    Xact[i] -= 1
+                    er[i] = 0
+            
+            #if there isnt any active lines or all are active we are finished
+            if(all(ActiveSides[:]==0)):
+                # print("all == 0")
+                break
+            if(all(ActiveSides[:]==1)):
+                #print("all == 1")
+                break
+
+            #temp variable to correnctly index Xact points
+            p=0
+            for i in range(0,3):
+                if(ActiveSides[i] == 1):
+                    indexAct[p] = i
+                    Xact2[p] = Xact[i]
+                    p += 1
+
+            # Find min and max of a line
+            Xmin = int(min(Xact[ActiveSides[:]==1]))
+            Xmax = int(max(Xact[ActiveSides[:]==1]))
+            
+            # x1,x2,x3,x4 are the vertices that our active points lie between and their respective colors C1,C2,C3,C4
+            x1 = verts2d[pairs[indexAct[0],0],:]
+            x2 = verts2d[pairs[indexAct[0],1],:]
+            x3 = verts2d[pairs[indexAct[1],0],:]
+            x4 = verts2d[pairs[indexAct[1],1],:]
+            C1 = vcolors[pairs[indexAct[0],0],:]
+            C2 = vcolors[pairs[indexAct[0],1],:]
+            C3 = vcolors[pairs[indexAct[1],0],:]
+            C4 = vcolors[pairs[indexAct[1],1],:]
+            # Calculate the colors of the active points
+            colorsXact[0] = interpolate_color(x1,x2,np.array([Xact2[0],y]),C1,C2)
+            colorsXact[1] = interpolate_color(x3,x4,np.array([Xact2[1],y]),C3,C4)
+
+            # temp variable to correnctly keep track of Xact (active points)
+            cross_c=0;      
+            for x in range(Xmin,Xmax+1):
+                
+                if(Xact2[0] == Xact2[1]):
+                    if shade_t == "gouraud":
+                        Y[y,x,:] = colorsXact[0]
+                    elif shade_t == "flat":
+                        Y[y,x,:] =  c[:]
+                    break
+
+                if(Xact2[0] == x):
+                    if shade_t == "gouraud":
+                        Y[y,x,:] = colorsXact[0]
+                    elif shade_t == "flat":
+                        Y[y,x,:] =  c[:]
+                    cross_c=cross_c+1 # +1 if we meet a Active side
+                elif(Xact2[1] == x):
+                    if shade_t == "gouraud":
+                        Y[y,x,:] = colorsXact[1]
+                    elif shade_t == "flat":
+                        Y[y,x,:] =  c[:]
+                    cross_c=cross_c+1 # +1 if we meet a Active side
+            
+                if np.mod(cross_c,2) == 1:  # When cross_c is an odd number we are inside a triangle
+                    if shade_t == "gouraud":
+                        Y[y,x,:] = interpolate_color(Xact2[0],Xact2[1],x,colorsXact[0],colorsXact[1])
+                    elif shade_t == "flat":
+                        Y[y,x,:] =  c[:]
+                    # Interpolate and paint if point is inside the triangle
+                    #Y[y,x,:] = interpolate_color(Xact2[0],Xact2[1],x,colorsXact[0],colorsXact[1])
+
+            # Update the active points with the correct gradient
+            for k in range(0,3):
+                if ActiveSides[k] == 1:  
+                    if m[k] == np.inf:
+                        Xk[k]=Xk[k]
+                    if m[k] == 0:
+                        Xk[k] += 1
+                    else:
+                        Xk[k] = Xk[k] + 1/m[k]
+
+            for k in range(0,3):
+                if Ykmin[k] == y+1 and m[k] != 0:
+                    ActiveSides[k] = 1          # When the scanline cuts the side of the triangle
+                    Xk[k] = (y+1 - verts2d[k,1]) / m[k] + verts2d[k,0]
+
+                if (Ykmax[k] == y+1) and (y+1 != Ymax):
+                    ActiveSides[k] = 0
+
+    return Y
